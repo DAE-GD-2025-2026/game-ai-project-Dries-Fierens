@@ -23,7 +23,7 @@ SteeringOutput Separation::CalculateSteering(float deltaT, ASteeringAgent& pAgen
 	{
 		if (neighbor) 
 		{
-			if (neighbor != pAgent)
+			if (neighbor != &pAgent)
 			{
 				FVector2D toAgent = pAgent.GetPosition() - neighbor->GetPosition();
 				float distance = toAgent.Size(); // magnitude
