@@ -7,10 +7,12 @@ SteeringOutput Seek::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 	
 	steering.LinearVelocity = Target.Position - Agent.GetPosition();
 	//steering.LinearVelocity.Normalize(); // will be normalized by default
-
+	
 	if (Agent.GetDebugRenderingEnabled()) 
 	{
-		//DrawDebugCircle()
+		const FVector start = FVector(Agent.GetPosition(), 0);
+		const FVector end = FVector(Target.Position, 0);
+		DrawDebugDirectionalArrow(Agent.GetWorld(), start, end, 5.f, FColor::Red);
 	}
 
 	return steering;
@@ -19,10 +21,15 @@ SteeringOutput Seek::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 SteeringOutput Flee::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 {
 	SteeringOutput steering{};
-
+	
 	steering.LinearVelocity = Agent.GetPosition() - Target.Position;
 
-	// add debug rendering for grades!!
+	if (Agent.GetDebugRenderingEnabled()) 
+	{
+		const FVector start = FVector(Agent.GetPosition(), 0);
+		const FVector end = FVector(Agent.GetPosition() + steering.LinearVelocity, 0);
+		DrawDebugDirectionalArrow(Agent.GetWorld(), start, end, 5.f, FColor::Red);
+	}
 	
 	return steering;
 }
@@ -46,7 +53,14 @@ SteeringOutput Arrive::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 		steering.LinearVelocity *= m_MaxLinearSpeed;
 	}
 	
-	// add debug rendering for grades!!
+	if(Agent.GetDebugRenderingEnabled())
+	{
+		const FVector pos = FVector(Agent.GetPosition(), 0);
+		DrawDebugCircle(Agent.GetWorld(), pos, m_SlowRadius,0.7f, FColor::Red);
+		DrawDebugCircle(Agent.GetWorld(), pos, m_TargetRadius,0.7f, FColor::Red);
+		const FVector end = FVector(Target.Position, 0);
+		DrawDebugDirectionalArrow(Agent.GetWorld(), pos, end, 5.f, FColor::Red);
+	}
 
 	return steering;
 }
@@ -57,7 +71,12 @@ SteeringOutput Face::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 
 	steering.LinearVelocity = Target.Position - Agent.GetPosition();
 
-	//if (Agent.GetDebugRenderingEnabled())
+	if (Agent.GetDebugRenderingEnabled()) 
+	{
+		const FVector start = FVector(Agent.GetPosition(), 0);
+		const FVector end = FVector(Agent.GetPosition() + steering.LinearVelocity, 0);
+		DrawDebugDirectionalArrow(Agent.GetWorld(), start, end, 5.f, FColor::Red);
+	}
 
 	return steering;
 }
@@ -76,6 +95,13 @@ SteeringOutput Pursuit::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 
 	steering.LinearVelocity = futurePosition - Agent.GetPosition();
 	steering.LinearVelocity *= speed;
+	
+	if (Agent.GetDebugRenderingEnabled()) 
+	{
+		const FVector start = FVector(Agent.GetPosition(), 0);
+		const FVector end = FVector(Agent.GetPosition() + steering.LinearVelocity, 0);
+		DrawDebugDirectionalArrow(Agent.GetWorld(), start, end, 5.f, FColor::Red);
+	}
 
 	return steering;  
 }
@@ -94,6 +120,13 @@ SteeringOutput Evade::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 
 	steering.LinearVelocity = Agent.GetPosition() - futurePosition; // opposite of pursuit
 	steering.LinearVelocity *= speed;
+	
+	if (Agent.GetDebugRenderingEnabled()) 
+	{
+		const FVector start = FVector(Agent.GetPosition(), 0);
+		const FVector end = FVector(Agent.GetPosition() + steering.LinearVelocity, 0);
+		DrawDebugDirectionalArrow(Agent.GetWorld(), start, end, 5.f, FColor::Red);
+	}
 
 	return steering;
 }
@@ -119,5 +152,14 @@ SteeringOutput Wander::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 	steering.LinearVelocity = wanderTarget - Agent.GetPosition();
 	steering.LinearVelocity *= Agent.GetMaxLinearSpeed();
 
+	if (Agent.GetDebugRenderingEnabled())
+	{
+		const FVector circlePos = FVector(Agent.GetPosition() + circleCenter, 0);
+		DrawDebugCircle(Agent.GetWorld(), circlePos, 200.F, 100.f, FColor::Blue, false, -1, 0.f, 4.f, FVector::RightVector, FVector::ForwardVector);
+		const FVector start = FVector(Agent.GetPosition(), 0);
+		const FVector end = FVector(Agent.GetPosition() + steering.LinearVelocity, 0);
+		DrawDebugDirectionalArrow(Agent.GetWorld(), start, end, 5.f, FColor::Red);
+	}
+	
 	return steering;
 }
