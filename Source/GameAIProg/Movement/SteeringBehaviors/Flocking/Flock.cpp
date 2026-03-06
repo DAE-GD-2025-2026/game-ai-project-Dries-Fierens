@@ -46,11 +46,11 @@ Flock::Flock(
 
 	for (int i = 0; i < FlockSize; ++i)
 	{
-		Agents[i]->GetWorld()->SpawnActor<ASteeringAgent>();
+		Agents[i]->GetWorld()->SpawnActor<ASteeringAgent>(AgentClass, FVector{0,0,90}, FRotator::ZeroRotator);
 		Agents[i]->SetIsAutoOrienting(true);
 		Agents[i]->SetMaxLinearSpeed(15.f);
 		Agents[i]->SetMass(1.f);
-		Agents[i]->SetActorLocation(FVector{ FMath::FRandRange(0.f, WorldSize), FMath::FRandRange(0.f, WorldSize), 0 });
+		Agents[i]->SetActorLocation(FVector{ FMath::FRandRange(0.f, WorldSize), FMath::FRandRange(0.f, WorldSize), 90 });
 		Agents[i]->SetSteeringBehavior(pPrioritySteering.get());
 
 		pCellSpace->AddAgent(*Agents[i]);
@@ -83,8 +83,7 @@ void Flock::Tick(float DeltaTime)
   	// TODO: trim the agent to the world
   	if (TrimWorld)
   	{
-  		pAgent->GetWorld().set
-  		pAgent->TrimToWorld(WorldSize);
+  		
   	}
   }
 }
@@ -92,9 +91,8 @@ void Flock::Tick(float DeltaTime)
 void Flock::RenderDebug()
 {
  // TODO: Render all the agents in the flock
-	//for (ASteeringAgent* pAgent : Agents)
-	//	pAg
-	
+	for (ASteeringAgent* pAgent : Agents)
+		
 	if (DebugRenderPartitions)
 		pCellSpace->RenderCells();
 

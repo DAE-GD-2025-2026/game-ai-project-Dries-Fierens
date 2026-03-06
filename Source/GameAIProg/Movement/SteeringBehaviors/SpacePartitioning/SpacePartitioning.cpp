@@ -38,10 +38,9 @@ CellSpace::CellSpace(UWorld* pWorld, float Width, float Height, int Rows, int Co
 	, SpaceHeight{Height}
 	, NrOfRows{Rows}
 	, NrOfCols{Cols}
+	, Neighbors(MaxEntities)
 	, NrOfNeighbors{0}
 {
-	Neighbors.SetNum(MaxEntities);
-	
 	//calculate bounds of a cell
 	CellWidth = Width / Cols;
 	CellHeight = Height / Rows;
@@ -82,8 +81,12 @@ void CellSpace::RegisterNeighbors(ASteeringAgent& Agent, float QueryRadius)
 {
 	// TODO Register the neighbors for the provided agent
 	// TODO Only check the cells that are within the radius of the neighborhood
-	/*NrOfNeighbors = 0;
-	FRect neighborhoodBox(Agent.GetPosition() - FVector2D(QueryRadius, QueryRadius), QueryRadius * 2, QueryRadius * 2);
+	NrOfNeighbors = 0;
+	FRect neighborhoodBox;
+	float r = QueryRadius * 2;
+	FVector2D pos = Agent.GetPosition() - FVector2D(QueryRadius, QueryRadius);
+	neighborhoodBox.Min = { pos.X, pos.Y };
+	neighborhoodBox.Max = { neighborhoodBox.Min.X + r, neighborhoodBox.Min.Y + r};
 
 	for (Cell& cell : Cells)
 	{
@@ -91,13 +94,13 @@ void CellSpace::RegisterNeighbors(ASteeringAgent& Agent, float QueryRadius)
 		{
 			for (ASteeringAgent* agent : cell.Agents)
 			{
-				if (agent != Agent && UE::Geometry::DistanceSquared(Agent.GetPosition(), Agent.GetPosition()) <= QueryRadius * QueryRadius)
+				if (agent != &Agent && UE::Geometry::DistanceSquared(Agent.GetPosition(), Agent.GetPosition()) <= QueryRadius * QueryRadius)
 				{
 					Neighbors[NrOfNeighbors++] = agent;
 				}
 			}
 		}
-	}*/
+	}
 }
 
 void CellSpace::EmptyCells()
@@ -109,14 +112,25 @@ void CellSpace::EmptyCells()
 void CellSpace::RenderCells() const
 {
 	// TODO Render the cells with the number of agents inside of it
-	/*for (const Cell& cell : Cells)
+	for (const Cell& cell : Cells)
 	{
-		std::vector<FVector2D> rectPoints = cell.GetRectPoints();
-		//DrawDebugPolygon(&rectPoints[0], rectPoints.size(), { 1, 1, 1, 1 }, 0.5f);
+        const FVector2D min2 = cell.BoundingBox.Min;
+        const FVector2D max2 = cell.BoundingBox.Max;
+		
+        const FVector2D center2 = (min2 + max2) * 0.5f;
+        const FVector center3(center2.X, center2.Y, 0.f);
+		
+        const float halfW = (max2.X - min2.X) * 0.5f;
+        const float halfH = (max2.Y - min2.Y) * 0.5f;
+		
+        const FVector extent3(halfW, halfH, 5.f);
+
+        DrawDebugBox(pWorld, center3, extent3, FColor::White);
+		
 		std::string agentCount = std::to_string(cell.Agents.size());
-		FVector textPos = cell.BoundingBox;
+		FVector textPos = FVector(cell.BoundingBox.Min + FVector2D(5, 5), 0);
 		DrawDebugString(pWorld, textPos, agentCount.c_str());
-	}*/
+	}
 }
 
 int CellSpace::PositionToIndex(FVector2D const & Pos) const
