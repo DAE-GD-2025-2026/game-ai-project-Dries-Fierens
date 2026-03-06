@@ -46,11 +46,12 @@ Flock::Flock(
 
 	for (int i = 0; i < FlockSize; ++i)
 	{
-		Agents[i]->GetWorld()->SpawnActor<ASteeringAgent>(AgentClass, FVector{0,0,90}, FRotator::ZeroRotator);
-		Agents[i]->SetIsAutoOrienting(true);
-		Agents[i]->SetMaxLinearSpeed(15.f);
-		Agents[i]->SetMass(1.f);
-		Agents[i]->SetActorLocation(FVector{ FMath::FRandRange(0.f, WorldSize), FMath::FRandRange(0.f, WorldSize), 90 });
+		FVector spawn = FVector{ FMath::FRandRange(0.f, WorldSize), FMath::FRandRange(0.f, WorldSize), 90 };
+		ASteeringAgent* Agent = pWorld->SpawnActor<ASteeringAgent>(AgentClass, spawn, FRotator::ZeroRotator);
+		Agents[i] = Agent;
+		// Agents[i]->SetIsAutoOrienting(true);
+		// Agents[i]->SetMaxLinearSpeed(15.f);
+		// Agents[i]->SetMass(1.f);
 		Agents[i]->SetSteeringBehavior(pPrioritySteering.get());
 
 		pCellSpace->AddAgent(*Agents[i]);

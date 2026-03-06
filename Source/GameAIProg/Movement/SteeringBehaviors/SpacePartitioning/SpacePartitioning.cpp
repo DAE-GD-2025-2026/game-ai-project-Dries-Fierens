@@ -128,7 +128,8 @@ void CellSpace::RenderCells() const
         DrawDebugBox(pWorld, center3, extent3, FColor::White);
 		
 		std::string agentCount = std::to_string(cell.Agents.size());
-		FVector textPos = FVector(cell.BoundingBox.Min + FVector2D(5, 5), 0);
+		FVector2D offset = FVector2D(5, 5);
+		FVector textPos = FVector(cell.BoundingBox.Min + offset, 0);
 		DrawDebugString(pWorld, textPos, agentCount.c_str());
 	}
 }
