@@ -68,19 +68,20 @@ SteeringOutput Arrive::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 SteeringOutput Face::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 {
 	SteeringOutput steering{};
-	
+
 	FVector2D toTarget = Target.Position - Agent.GetPosition();
-	toTarget.Normalize();
+	float desiredAngle = FMath::RadiansToDegrees(FMath::Atan2(toTarget.Y, toTarget.X));
+	float deltaAngle = FMath::FindDeltaAngleDegrees(Agent.GetRotation(), desiredAngle);
 
-	const float desiredAngle = atan2(toTarget.Y, toTarget.X);
-	const float currentAngle = Agent.GetRotation();
+	if (deltaAngle >= 0.f)
+		steering.AngularVelocity = Agent.GetMaxAngularSpeed();
+	else
+		steering.AngularVelocity = -Agent.GetMaxAngularSpeed();
 	
-	// Calculate the shortest angle to rotate
-	float angleDifference = desiredAngle - currentAngle;
-	if (angleDifference > PI) angleDifference -= 2 * PI;
-	if (angleDifference < -PI) angleDifference += 2 * PI;
-
-	steering.AngularVelocity = angleDifference;
+	if (abs(deltaAngle) < 5.f)
+	{
+		steering.AngularVelocity = 0.1f;
+	}
 	
 	if (Agent.GetDebugRenderingEnabled()) 
 	{
