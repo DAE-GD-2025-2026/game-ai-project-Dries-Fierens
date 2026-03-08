@@ -79,7 +79,7 @@ private:
 	bool DebugRenderNeighborhood{true};
 	bool DebugRenderPartitions{false};
 	bool bTrimWorld{false};
-	bool bUseSpacePartitioning{true};
+	bool bUseSpacePartitioning{false};
 
 	void RenderNeighborhood();
 };

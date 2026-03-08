@@ -26,7 +26,7 @@ Flock::Flock(
 	pVelMatchBehavior = std::make_unique<VelocityMatch>(this);
 	pSeekBehavior = std::make_unique<Seek>();
 	pWanderBehavior = std::make_unique<Wander>();
-	pEvadeBehavior = std::make_unique<Evade>();
+	pEvadeBehavior = std::make_unique<Evade>(NeighborhoodRadius);
 	
 	pBlendedSteering = std::make_unique<BlendedSteering>(
 		std::vector<BlendedSteering::WeightedBehavior>({
@@ -160,19 +160,42 @@ void Flock::ImGuiRender(ImVec2 const& WindowPos, ImVec2 const& WindowSize)
 		ImGui::Spacing();
 
         // TODO: implement ImGUI checkboxes for debug rendering here
-		ImGui::Checkbox("Render Neighborhood", &DebugRenderNeighborhood);
-		ImGui::Checkbox("Use Spatial Partitioning", &bUseSpacePartitioning);
-		ImGui::Checkbox("Render Partitions", &DebugRenderPartitions);
+		bool renderNeighborhood = DebugRenderNeighborhood;
+		if (ImGui::Checkbox("Render Neighborhood", &renderNeighborhood))
+			DebugRenderNeighborhood = renderNeighborhood;
+
+		bool useSpacePartitioning = bUseSpacePartitioning;
+		if (ImGui::Checkbox("Use Spatial Partitioning", &useSpacePartitioning))
+			bUseSpacePartitioning = useSpacePartitioning;
+
+		bool renderPartitions = DebugRenderPartitions;
+		if (ImGui::Checkbox("Render Partitions", &renderPartitions))
+			DebugRenderPartitions = renderPartitions;
 		
 		ImGui::Text("Behavior Weights");
 		ImGui::Spacing();
 
 		// TODO: implement ImGUI sliders for steering behavior weights here
-		ImGui::SliderFloat("Separation", &pBlendedSteering->GetWeightedBehaviorsRef()[0].Weight, 0.f, 1.f, "%.2");
-		ImGui::SliderFloat("Cohesion", &pBlendedSteering->GetWeightedBehaviorsRef()[1].Weight, 0.f, 1.f, "%.2");
-		ImGui::SliderFloat("Velocity Match", &pBlendedSteering->GetWeightedBehaviorsRef()[2].Weight, 0.f, 1.f, "%.2");
-		ImGui::SliderFloat("Seek", &pBlendedSteering->GetWeightedBehaviorsRef()[3].Weight, 0.f, 1.f, "%.2");
-		ImGui::SliderFloat("Wander", &pBlendedSteering->GetWeightedBehaviorsRef()[4].Weight, 0.f, 1.f, "%.2");
+		if (pBlendedSteering)
+		{
+			auto& weighted = pBlendedSteering->GetWeightedBehaviorsRef();
+			
+			float w0 = weighted[0].Weight;
+			if (ImGui::SliderFloat("Separation", &w0, 0.f, 1.f, "%.2f"))
+				weighted[0].Weight = w0;
+			float w1 = weighted[1].Weight;
+			if (ImGui::SliderFloat("Cohesion", &w1, 0.f, 1.f, "%.2f"))
+				weighted[1].Weight = w1;
+			float w2 = weighted[2].Weight;
+			if (ImGui::SliderFloat("Velocity Match", &w2, 0.f, 1.f, "%.2f"))
+				weighted[2].Weight = w2;
+			float w3 = weighted[3].Weight;
+			if (ImGui::SliderFloat("Seek", &w3, 0.f, 1.f, "%.2f"))
+				weighted[3].Weight = w3;
+			float w4 = weighted[4].Weight;
+			if (ImGui::SliderFloat("Wander", &w4, 0.f, 1.f, "%.2f"))
+				weighted[4].Weight = w4;
+		}
 		
 		//End
 		ImGui::End();

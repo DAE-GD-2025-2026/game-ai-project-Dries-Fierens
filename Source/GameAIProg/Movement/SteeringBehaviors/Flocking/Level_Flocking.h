@@ -27,6 +27,8 @@ protected:
 
 	TUniquePtr<Flock> pFlock{};
 	
+	std::unique_ptr<Wander> pEvadeTargetWander{};
 	UPROPERTY(EditAnywhere, Category = "Flocking")
 	ASteeringAgent* pAgentToEvade{nullptr}; // non owning ref
+	
 };

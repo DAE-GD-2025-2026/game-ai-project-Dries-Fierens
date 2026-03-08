@@ -3,6 +3,8 @@
 #include <Movement/SteeringBehaviors/SteeringHelpers.h>
 #include "Kismet/KismetMathLibrary.h"
 
+const float DEBUG_ARROW_LENGTH = 100.f;
+
 class ASteeringAgent;
 
 // SteeringBehavior base, all steering behaviors should derive from this.
@@ -79,9 +81,12 @@ class Evade : public ISteeringBehavior
 {
 public:
 	Evade() = default;
+	Evade(float radius);
 	virtual ~Evade() override = default;
 
 	virtual SteeringOutput CalculateSteering(float DeltaT, ASteeringAgent& Agent) override;
+private:
+	float m_Radius{};
 };
 
 class Wander : public Seek
@@ -95,10 +100,12 @@ public:
 	void SetWanderOffset(float offset) { m_OffsetDistance = offset; }
 	void SetWanderRadius(float radius) { m_Radius = radius; }
 	void SetMaxAngleChange(float radians) { m_MaxAngleChange = radians; }
+	void SetDebugColor(FColor debugColor) { m_DebugColor = debugColor; }
 	
 protected:
 	float m_OffsetDistance = 6.f;
 	float m_Radius = 4.f;
 	float m_MaxAngleChange = FMath::DegreesToRadians(45);
 	float m_WanderAngle = 0.f;
+	FColor m_DebugColor = FColor::Blue;
 };

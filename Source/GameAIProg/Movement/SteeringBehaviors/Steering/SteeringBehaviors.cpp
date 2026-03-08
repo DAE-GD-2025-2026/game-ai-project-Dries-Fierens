@@ -11,7 +11,9 @@ SteeringOutput Seek::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 	if (Agent.GetDebugRenderingEnabled()) 
 	{
 		const FVector start = FVector(Agent.GetPosition(), 0);
-		const FVector end = FVector(Target.Position, 0);
+		FVector dir = FVector(steering.LinearVelocity, 0.f);
+		dir.Normalize();
+		FVector end = start + dir * DEBUG_ARROW_LENGTH;
 		DrawDebugDirectionalArrow(Agent.GetWorld(), start, end, 5.f, FColor::Red);
 	}
 
@@ -27,7 +29,9 @@ SteeringOutput Flee::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 	if (Agent.GetDebugRenderingEnabled()) 
 	{
 		const FVector start = FVector(Agent.GetPosition(), 0);
-		const FVector end = FVector(Agent.GetPosition() + steering.LinearVelocity, 0);
+		FVector dir = FVector(steering.LinearVelocity, 0.f);
+		dir.Normalize();
+		FVector end = start + dir * DEBUG_ARROW_LENGTH;
 		DrawDebugDirectionalArrow(Agent.GetWorld(), start, end, 5.f, FColor::Red);
 	}
 	
@@ -58,7 +62,9 @@ SteeringOutput Arrive::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 		const FVector pos = FVector(Agent.GetPosition(), 0);
 		DrawDebugCircle(Agent.GetWorld(), pos, m_SlowRadius,0.7f, FColor::Red);
 		DrawDebugCircle(Agent.GetWorld(), pos, m_TargetRadius,0.7f, FColor::Red);
-		const FVector end = FVector(Target.Position, 0);
+		FVector dir = FVector(steering.LinearVelocity, 0.f);
+		dir.Normalize();
+		FVector end = pos + dir * DEBUG_ARROW_LENGTH;
 		DrawDebugDirectionalArrow(Agent.GetWorld(), pos, end, 5.f, FColor::Red);
 	}
 
@@ -86,7 +92,9 @@ SteeringOutput Face::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 	if (Agent.GetDebugRenderingEnabled()) 
 	{
 		const FVector start = FVector(Agent.GetPosition(), 0);
-		const FVector end = FVector(Target.Position, 0);
+		FVector dir = FVector(steering.LinearVelocity, 0.f);
+		dir.Normalize();
+		FVector end = start + dir * DEBUG_ARROW_LENGTH;
 		DrawDebugDirectionalArrow(Agent.GetWorld(), start, end, 5.f, FColor::Red);
 	}
 
@@ -111,11 +119,18 @@ SteeringOutput Pursuit::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 	if (Agent.GetDebugRenderingEnabled()) 
 	{
 		const FVector start = FVector(Agent.GetPosition(), 0);
-		const FVector end = FVector(Agent.GetPosition() + steering.LinearVelocity, 0);
+		FVector dir = FVector(steering.LinearVelocity, 0.f);
+		dir.Normalize();
+		FVector end = start + dir * DEBUG_ARROW_LENGTH;
 		DrawDebugDirectionalArrow(Agent.GetWorld(), start, end, 5.f, FColor::Red);
 	}
 
 	return steering;  
+}
+
+Evade::Evade(float radius)
+{
+	m_Radius = radius;
 }
 
 SteeringOutput Evade::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
@@ -124,6 +139,11 @@ SteeringOutput Evade::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 
 	const FVector2D toTarget = Target.Position - Agent.GetPosition();
 	const float distance = toTarget.Size();
+	
+	if (distance > m_Radius) {
+		steering.IsValid = false;
+		return steering;
+	}
 	
 	const float speed = Agent.GetMaxLinearSpeed();
 	const float predictionTime = distance / speed;
@@ -136,7 +156,9 @@ SteeringOutput Evade::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 	if (Agent.GetDebugRenderingEnabled()) 
 	{
 		const FVector start = FVector(Agent.GetPosition(), 0);
-		const FVector end = FVector(Agent.GetPosition() + steering.LinearVelocity, 0);
+		FVector dir = FVector(steering.LinearVelocity, 0.f);
+		dir.Normalize();
+		FVector end = start + dir * DEBUG_ARROW_LENGTH;
 		DrawDebugDirectionalArrow(Agent.GetWorld(), start, end, 5.f, FColor::Red);
 	}
 
@@ -167,9 +189,11 @@ SteeringOutput Wander::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 	if (Agent.GetDebugRenderingEnabled())
 	{
 		const FVector circlePos = FVector(Agent.GetPosition() + circleCenter, 0);
-		DrawDebugCircle(Agent.GetWorld(), circlePos, 200.F, 100.f, FColor::Blue, false, -1, 0.f, 4.f, FVector::RightVector, FVector::ForwardVector);
+		DrawDebugCircle(Agent.GetWorld(), circlePos, 100.f, 100.f, m_DebugColor, false, -1, 0.f, 4.f, FVector::RightVector, FVector::ForwardVector);
 		const FVector start = FVector(Agent.GetPosition(), 0);
-		const FVector end = FVector(Agent.GetPosition() + steering.LinearVelocity, 0);
+		FVector dir = FVector(steering.LinearVelocity, 0.f);
+		dir.Normalize();
+		FVector end = start + dir * DEBUG_ARROW_LENGTH;
 		DrawDebugDirectionalArrow(Agent.GetWorld(), start, end, 5.f, FColor::Red);
 	}
 	
