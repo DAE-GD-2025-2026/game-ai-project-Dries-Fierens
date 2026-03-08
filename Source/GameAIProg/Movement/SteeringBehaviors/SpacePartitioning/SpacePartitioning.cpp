@@ -85,7 +85,7 @@ void CellSpace::RegisterNeighbors(ASteeringAgent& Agent, float QueryRadius)
 	FRect neighborhoodBox;
 	float r = QueryRadius * 2;
 	FVector2D pos = Agent.GetPosition() - FVector2D(QueryRadius, QueryRadius);
-	neighborhoodBox.Min = { pos.X, pos.Y };
+	neighborhoodBox.Min = pos;
 	neighborhoodBox.Max = { neighborhoodBox.Min.X + r, neighborhoodBox.Min.Y + r};
 
 	for (Cell& cell : Cells)
@@ -94,7 +94,7 @@ void CellSpace::RegisterNeighbors(ASteeringAgent& Agent, float QueryRadius)
 		{
 			for (ASteeringAgent* agent : cell.Agents)
 			{
-				if (agent != &Agent && UE::Geometry::DistanceSquared(Agent.GetPosition(), Agent.GetPosition()) <= QueryRadius * QueryRadius)
+				if (agent != &Agent && UE::Geometry::DistanceSquared(Agent.GetPosition(), agent->GetPosition()) <= QueryRadius * QueryRadius)
 				{
 					Neighbors[NrOfNeighbors++] = agent;
 				}

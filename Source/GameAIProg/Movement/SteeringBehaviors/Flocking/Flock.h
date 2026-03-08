@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 // Toggle this define to enable/disable spatial partitioning
-// #define GAMEAI_USE_SPACE_PARTITIONING
+//#define GAMEAI_USE_SPACE_PARTITIONING
 
 #include "FlockingSteeringBehaviors.h"
 #include "Movement/SteeringBehaviors/SteeringAgent.h"
@@ -10,11 +10,8 @@
 #include <memory>
 #include "MemoryPool.h"
 #include "imgui.h"
-#include "Movement/SteeringBehaviors/SpacePartitioning/SpacePartitioning.h"
-#ifdef GAMEAI_USE_SPACE_PARTITIONING
-#include "../SpacePartitioning/SpacePartitioning.h"
-#endif
 
+class CellSpace;
 class Flock final
 {
 public:
@@ -33,22 +30,13 @@ public:
 	void ImGuiRender(ImVec2 const& WindowPos, ImVec2 const& WindowSize);
 
 #ifdef GAMEAI_USE_SPACE_PARTITIONING
-	//const TArray<ASteeringAgent*>& GetNeighbors() const { return pPartitionedSpace->GetNeighbors(); }
-	//int GetNrOfNeighbors() const { return pPartitionedSpace->GetNrOfNeighbors(); }
+	const TArray<ASteeringAgent*>& GetNeighbors() const { return pPartitionedSpace->GetNeighbors(); }
+	int GetNrOfNeighbors() const { return pPartitionedSpace->GetNrOfNeighbors(); }
 #else // No space partitioning
 	void RegisterNeighbors(ASteeringAgent* const Agent);
-	int GetNrOfNeighbors() const { return NrOfNeighbors; }
-	//const TArray<ASteeringAgent*>& GetNeighbors() const { return pNeighbors; }
-	MemoryPool<ASteeringAgent*>& GetNeighbors() 
-	{ 
-		if (DebugRenderPartitions) {
-			pNeighbors.reset();
-			pNeighbors.SetPool(pCellSpace->GetNeighbors());
-		}
-		return pNeighbors;
-	}
+	int GetNrOfNeighbors() const;
+	MemoryPool<ASteeringAgent*>& GetNeighbors();
 #endif // USE_SPACE_PARTITIONING
-	
 	FVector2D GetAverageNeighborPos() const;
 	FVector2D GetAverageNeighborVelocity() const;
 
@@ -59,16 +47,16 @@ private:
 	UWorld* pWorld{nullptr};
 	
 	int FlockSize{0};
-	TArray<ASteeringAgent*> Agents{};
+	std::vector<ASteeringAgent*> Agents{};
 #ifdef GAMEAI_USE_SPACE_PARTITIONING
-	//std::unique_ptr<CellSpace> pPartitionedSpace{};
-	//int NrOfCellsX{ 10 };
-	//TArray<FVector2D> OldPositions{};
+	std::unique_ptr<CellSpace> pPartitionedSpace{};
 #else // No space partitioning
 	MemoryPool<ASteeringAgent*> pNeighbors;
 	CellSpace* pCellSpace = nullptr;
 #endif // USE_SPACE_PARTITIONING
 	
+	TArray<FVector2D> OldPositions{};
+	int NrOfCellsX{ 10 };
 	float NeighborhoodRadius{200.f};
 	int NrOfNeighbors{0};
 	float WorldSize = 0.f;
@@ -89,8 +77,9 @@ private:
 	// UI and rendering
 	bool DebugRenderSteering{false};
 	bool DebugRenderNeighborhood{true};
-	bool DebugRenderPartitions{true};
-	bool TrimWorld{false};
+	bool DebugRenderPartitions{false};
+	bool bTrimWorld{false};
+	bool bUseSpacePartitioning{true};
 
 	void RenderNeighborhood();
 };

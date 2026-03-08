@@ -18,7 +18,9 @@ void ALevel_Flocking::BeginPlay()
 
 	TrimWorld->SetTrimWorldSize(3000.f);
 	TrimWorld->bShouldTrimWorld = true;
-
+	
+	pAgentToEvade = GetWorld()->SpawnActor<ASteeringAgent>(SteeringAgentClass, FVector::ZeroVector, FRotator::ZeroRotator);
+	
 	pFlock = TUniquePtr<Flock>(
 		new Flock(
 			GetWorld(),

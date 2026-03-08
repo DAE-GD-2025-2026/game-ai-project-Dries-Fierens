@@ -1,7 +1,7 @@
 #include "Flock.h"
 #include "FlockingSteeringBehaviors.h"
 #include "Shared/ImGuiHelpers.h"
-
+#include "../SpacePartitioning/SpacePartitioning.h"
 
 Flock::Flock(
 	UWorld* pWorld,
@@ -13,11 +13,12 @@ Flock::Flock(
 	: pWorld{pWorld}
 	, FlockSize{ FlockSize }
 	, pAgentToEvade{pAgentToEvade}
-    , TrimWorld{bTrimWorld}
+    , bTrimWorld{bTrimWorld}
     , WorldSize{WorldSize}
     , pNeighbors{ FlockSize, NrOfNeighbors }
 {
-	Agents.SetNum(FlockSize);
+	Agents.resize(FlockSize);
+	OldPositions.SetNum(FlockSize);
 	
 	// TODO: initialize the flock and the memory pool
 	pSeparationBehavior = std::make_unique<Separation>(this);
@@ -25,7 +26,7 @@ Flock::Flock(
 	pVelMatchBehavior = std::make_unique<VelocityMatch>(this);
 	pSeekBehavior = std::make_unique<Seek>();
 	pWanderBehavior = std::make_unique<Wander>();
-	pEvadeBehavior = std::make_unique<Evade>(); //NeighborhoodRadius
+	pEvadeBehavior = std::make_unique<Evade>();
 	
 	pBlendedSteering = std::make_unique<BlendedSteering>(
 		std::vector<BlendedSteering::WeightedBehavior>({
@@ -42,16 +43,25 @@ Flock::Flock(
 			pBlendedSteering.get()
 		}));
 	
-	pCellSpace = new CellSpace(pWorld, WorldSize, WorldSize, 10, 10, FlockSize);
+	pCellSpace = new CellSpace(pWorld, WorldSize, WorldSize, NrOfCellsX, NrOfCellsX, FlockSize);
 
+	FActorSpawnParameters spawnParams{};
+	spawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	
 	for (int i = 0; i < FlockSize; ++i)
 	{
-		FVector spawn = FVector{ FMath::FRandRange(0.f, WorldSize), FMath::FRandRange(0.f, WorldSize), 90 };
-		ASteeringAgent* Agent = pWorld->SpawnActor<ASteeringAgent>(AgentClass, spawn, FRotator::ZeroRotator);
-		Agents[i] = Agent;
-		// Agents[i]->SetIsAutoOrienting(true);
-		// Agents[i]->SetMaxLinearSpeed(15.f);
-		// Agents[i]->SetMass(1.f);
+		FVector randomSpawn = FVector{ FMath::FRandRange(0.f, WorldSize), FMath::FRandRange(0.f, WorldSize), 90 };
+		ASteeringAgent* agent = pWorld->SpawnActor<ASteeringAgent>(AgentClass, randomSpawn, FRotator::ZeroRotator, spawnParams);
+		
+		if (agent)
+		{
+			agent->SetActorTickEnabled(false); // prevents automatic Tick()
+			//agent->PrimaryActorTick.bCanEverTick = false;
+		}
+		
+		Agents[i] = agent;
+		OldPositions[i] = agent->GetPosition();
+		
 		Agents[i]->SetSteeringBehavior(pPrioritySteering.get());
 
 		pCellSpace->AddAgent(*Agents[i]);
@@ -60,16 +70,28 @@ Flock::Flock(
 
 Flock::~Flock()
 {
- // TODO: Cleanup any additional data
+	// TODO: Cleanup any additional data
+	if (pCellSpace) { delete (pCellSpace); (pCellSpace) = nullptr; }
+	
+	if (pAgentToEvade) pAgentToEvade->Destroy();
+	
+	for(ASteeringAgent* pAgent : Agents)
+	{
+		if (pAgent) pAgent->Destroy();
+	}
+	Agents.clear();
 }
 
 void Flock::Tick(float DeltaTime)
 {
   // TODO: update the flock
   // TODO: for every agent:
-  for (ASteeringAgent* pAgent : Agents)
+  for (int i = 0; i < Agents.size(); ++i)
   {
-  	pCellSpace->UpdateAgentCell(*pAgent, pAgent->GetPosition());
+  	ASteeringAgent* pAgent = Agents[i];
+  	
+  	if (pCellSpace) pCellSpace->UpdateAgentCell(*pAgent, OldPositions[i]);
+  	OldPositions[i] = pAgent->GetPosition();
   	
   	// TODO: register the neighbors for this agent (-> fill the memory pool with the neighbors for the currently evaluated agent)
   	RegisterNeighbors(pAgent);
@@ -81,19 +103,17 @@ void Flock::Tick(float DeltaTime)
   	
   	// TODO: update the agent (-> the steeringbehaviors use the neighbors in the memory pool)
   	pAgent->Tick(DeltaTime);
+  	
   	// TODO: trim the agent to the world
-  	if (TrimWorld)
-  	{
-  		
-  	}
+  	
   }
 }
 
 void Flock::RenderDebug()
 {
  // TODO: Render all the agents in the flock
-	for (ASteeringAgent* pAgent : Agents)
-		
+	//for (ASteeringAgent* pAgent : Agents)	
+	
 	if (DebugRenderPartitions)
 		pCellSpace->RenderCells();
 
@@ -141,6 +161,7 @@ void Flock::ImGuiRender(ImVec2 const& WindowPos, ImVec2 const& WindowSize)
 
         // TODO: implement ImGUI checkboxes for debug rendering here
 		ImGui::Checkbox("Render Neighborhood", &DebugRenderNeighborhood);
+		ImGui::Checkbox("Use Spatial Partitioning", &bUseSpacePartitioning);
 		ImGui::Checkbox("Render Partitions", &DebugRenderPartitions);
 		
 		ImGui::Text("Behavior Weights");
@@ -162,8 +183,8 @@ void Flock::ImGuiRender(ImVec2 const& WindowPos, ImVec2 const& WindowSize)
 
 void Flock::RenderNeighborhood()
 {
- // TODO: Debugrender the neighbors for the first agent in the flock
-	if (Agents.IsEmpty()) return;
+	// TODO: Debugrender the neighbors for the first agent in the flock
+	if (Agents.empty()) return;
 
 	// Register the neighbors for the first agent in the flock
 	RegisterNeighbors(Agents[0]);
@@ -181,7 +202,6 @@ void Flock::RenderNeighborhood()
 	}
 }
 
-#ifndef GAMEAI_USE_SPACE_PARTITIONING
 void Flock::RegisterNeighbors(ASteeringAgent* const pAgent)
 {
 	if (DebugRenderPartitions)
@@ -212,7 +232,21 @@ void Flock::RegisterNeighbors(ASteeringAgent* const pAgent)
 		}
 	}
 }
-#endif
+
+int Flock::GetNrOfNeighbors() const
+{
+	if (bUseSpacePartitioning) return pCellSpace->GetNrOfNeighbors();
+	return NrOfNeighbors;
+}
+
+MemoryPool<ASteeringAgent*>& Flock::GetNeighbors()
+{
+	if (bUseSpacePartitioning) {
+		pNeighbors.reset();
+		pNeighbors.SetPool(pCellSpace->GetNeighbors());
+	}
+	return pNeighbors;
+}
 
 FVector2D Flock::GetAverageNeighborPos() const
 {
