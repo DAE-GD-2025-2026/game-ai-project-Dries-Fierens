@@ -204,7 +204,7 @@ void Flock::RenderNeighborhood()
 
 void Flock::RegisterNeighbors(ASteeringAgent* const pAgent)
 {
-	if (DebugRenderPartitions)
+	if (bUseSpacePartitioning)
 	{
 		pCellSpace->RegisterNeighbors(*pAgent, NeighborhoodRadius);
 		NrOfNeighbors = pCellSpace->GetNrOfNeighbors();
