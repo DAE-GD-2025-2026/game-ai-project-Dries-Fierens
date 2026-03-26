@@ -113,7 +113,7 @@ void ALevel_PathfindingAStar::CalculatePath()
 
 		FoundPath = pathfinder.FindPath(startNode, endNode);
 		// std::cout << "New path calculated using " << typeid(pathfinder).name() << std::endl;
-		UE_LOG(LogTemp, Log, TEXT("New path calculated using %hs"), typeid(pathfinder).name());
+		//UE_LOG(LogTemp, Log, TEXT("New path calculated using %hs"), typeid(pathfinder).name());
 		UpdateAgentPath(FoundPath);
 	}
 	else
