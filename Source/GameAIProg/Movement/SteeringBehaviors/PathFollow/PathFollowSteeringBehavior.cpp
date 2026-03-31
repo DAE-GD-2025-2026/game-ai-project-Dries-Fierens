@@ -19,6 +19,7 @@ void PathFollow::SetPath(std::vector<FVector2D>& path)
 	pathVec = path;  
 	
 	currentPathIndex = -1;
+	pCurrentSteering = nullptr;
 	GotoNextPathPoint();
 }
 
@@ -34,6 +35,11 @@ SteeringOutput PathFollow::CalculateSteering(float DeltaTime, ASteeringAgent& Ag
 			//Reached point of the path
 			GotoNextPathPoint();
 		}
+	}
+	
+	if (pCurrentSteering == pSeek)
+	{
+		pArrive->RestoreSpeed(Agent);
 	}
 
 	if (pCurrentSteering != nullptr)

@@ -66,7 +66,7 @@ void GameAI::NavGraph::CreateNavigationGraph()
 		}
 		
 		// Check if the line is connected to another triangle
-		if (triangles.size() > 1)
+		if (connectedTriangleCount > 1)
 		{
 			// Add a new NavGraphNode to the Graph
 			FVector p1 = edge.GetP1(*pNavPoly.get());

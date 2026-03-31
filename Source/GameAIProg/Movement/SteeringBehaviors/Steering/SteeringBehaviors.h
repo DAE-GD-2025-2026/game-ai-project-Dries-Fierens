@@ -52,13 +52,15 @@ public:
 	virtual ~Arrive() override = default;
 
 	virtual SteeringOutput CalculateSteering(float DeltaT, ASteeringAgent& Agent) override;
-	
+
 	void SetTargetRadius(float radius) { m_TargetRadius = radius; }
-	
+	void SetSlowRadius(float radius) { m_SlowRadius = radius; }
+	void RestoreSpeed(ASteeringAgent& Agent);
+
 protected:
 	float m_TargetRadius = 3.f;
-	float m_SlowRadius = 15.f;
-	float m_MaxLinearSpeed = 10.f;
+	float m_SlowRadius = 150.f;
+	float m_OriginalMaxLinearSpeed = -1.f;
 };
 
 class Face : public ISteeringBehavior

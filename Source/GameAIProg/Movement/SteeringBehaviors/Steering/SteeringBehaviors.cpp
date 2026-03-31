@@ -41,34 +41,62 @@ SteeringOutput Flee::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 SteeringOutput Arrive::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
 {
 	SteeringOutput steering{};
-	
-	steering.LinearVelocity = Target.Position - Agent.GetPosition();
-	const float distance = steering.LinearVelocity.Size() - m_TargetRadius;
-	
-	if (distance < m_SlowRadius)
+
+	if (m_OriginalMaxLinearSpeed < 0.f)
 	{
-		float speed = m_MaxLinearSpeed * (distance / (m_SlowRadius + m_TargetRadius));
-		Agent.SetMaxLinearSpeed(speed);
-		steering.LinearVelocity *= speed;
+		m_OriginalMaxLinearSpeed = Agent.GetMaxLinearSpeed();
+	}
+
+	const FVector2D toTarget = Target.Position - Agent.GetPosition();
+	const float distance = toTarget.Size();
+
+	if (distance <= m_TargetRadius)
+	{
+		Agent.SetMaxLinearSpeed(0.f);
+		steering.LinearVelocity = FVector2D::ZeroVector;
 	}
 	else
 	{
-		Agent.SetMaxLinearSpeed(m_MaxLinearSpeed);
-		steering.LinearVelocity *= m_MaxLinearSpeed;
+		float desiredSpeed = m_OriginalMaxLinearSpeed;
+
+		if (distance < m_SlowRadius)
+		{
+			const float t = FMath::Clamp(
+				(distance - m_TargetRadius) / (m_SlowRadius - m_TargetRadius),
+				0.f,
+				1.f);
+
+			desiredSpeed = m_OriginalMaxLinearSpeed * t;
+		}
+
+		Agent.SetMaxLinearSpeed(desiredSpeed);
+		steering.LinearVelocity = toTarget.GetSafeNormal();
 	}
-	
-	if(Agent.GetDebugRenderingEnabled())
+
+	if (Agent.GetDebugRenderingEnabled())
 	{
 		const FVector pos = FVector(Agent.GetPosition(), 0);
-		DrawDebugCircle(Agent.GetWorld(), pos, m_SlowRadius,0.7f, FColor::Red);
-		DrawDebugCircle(Agent.GetWorld(), pos, m_TargetRadius,0.7f, FColor::Red);
+		DrawDebugCircle(Agent.GetWorld(), pos, m_SlowRadius, 32, FColor::Red);
+		DrawDebugCircle(Agent.GetWorld(), pos, m_TargetRadius, 32, FColor::Red);
+
 		FVector dir = FVector(steering.LinearVelocity, 0.f);
-		dir.Normalize();
-		FVector end = pos + dir * DEBUG_ARROW_LENGTH;
-		DrawDebugDirectionalArrow(Agent.GetWorld(), pos, end, 5.f, FColor::Red);
+		if (!dir.IsNearlyZero())
+		{
+			dir.Normalize();
+			const FVector end = pos + dir * DEBUG_ARROW_LENGTH;
+			DrawDebugDirectionalArrow(Agent.GetWorld(), pos, end, 5.f, FColor::Red);
+		}
 	}
 
 	return steering;
+}
+
+void Arrive::RestoreSpeed(ASteeringAgent& Agent)
+{
+	if (m_OriginalMaxLinearSpeed >= 0.f)
+	{
+		Agent.SetMaxLinearSpeed(m_OriginalMaxLinearSpeed);
+	}
 }
 
 SteeringOutput Face::CalculateSteering(float DeltaT, ASteeringAgent& Agent)
