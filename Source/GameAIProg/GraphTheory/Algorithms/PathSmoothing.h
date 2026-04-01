@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "NavGraphPathfinding.h"
+#include "VectorTypes.h"
 #include "Movement/Pathfinding/Navmesh/TriPolygon.h"
 #include "Shared/Graph/Graph.h"
 #include "Shared/Graph/NavGraph/NavGraphNode.h"
@@ -15,51 +16,149 @@ public:
 	//--- References ---
 	//http://digestingduck.blogspot.be/2010/03/simple-stupid-funnel-algorithm.html
 	//https://gamedev.stackexchange.com/questions/68302/how-does-the-simple-stupid-funnel-algorithm-work
-	static std::vector<NavLine> FindPortals(std::vector<Node*> const & Path, TriPolygon const & NavPoly)
+	static std::vector<NavLine> FindPortals(std::vector<Node*> const& Path, TriPolygon const& NavPoly)
 	{
 		//Container
-		std::vector<NavLine> Portals = {};
+		std::vector<NavLine> Portals{};
+		
+		Portals.push_back(NavLine(Path[0]->GetPosition(), Path[0]->GetPosition()));
 		
 		//For each node received, get it's corresponding line
-		
+		for (size_t i = 1; i < Path.size() - 1; ++i)
+		{
+			//Local variables
+			auto pNode = static_cast<NavGraphNode*>(Path[i]);
+			auto pEdge = NavPoly.GetEdges()[pNode->GetEdgeIdx()];
+
+			const FVector EdgeP1 = pEdge.GetP1(NavPoly);
+			const FVector EdgeP2 = pEdge.GetP2(NavPoly);
+
+			const FVector2D PortalP1{EdgeP1.X, EdgeP1.Y};
+			const FVector2D PortalP2{EdgeP2.X, EdgeP2.Y};
+
 			//Redetermine it's "orientation" based on the required path (left-right vs right-left) - p1 should be right point
+			const FVector2D centerLine = (PortalP1 + PortalP2) / 2.0f;
+			//const FVector2D previousPosition = i == 0 ? Path[0]->GetPosition() : Path[i - 1]->GetPosition();
+			const FVector2D previousPosition = Path[i - 1]->GetPosition();
+
+			const FVector2D ToCenter = centerLine - previousPosition;
+			const FVector2D ToP1 = PortalP1 - previousPosition;
+			
+			const float cross = Cross(ToCenter, ToP1);
+
+			NavLine portalLine{};
+			if (cross > 0.0f)
+				portalLine = NavLine(PortalP2, PortalP1);
+			else
+				portalLine = NavLine(PortalP1, PortalP2);
 
 			//Store portal
-
+			Portals.push_back(portalLine);
+		}
+		
 		//Add degenerate portal to force end evaluation
+		Portals.push_back(NavLine(Path[Path.size() - 1]->GetPosition(), Path[Path.size() - 1]->GetPosition()));
 
 		return Portals;
 	}
-
-	static std::vector<FVector2D> OptimizePortals( std::vector<NavLine> const & Portals, TriPolygon const & NavPoly)
-	{
-		std::vector<FVector2D> Path{};
-		//P1 == right point of portal, P2 == left point of portal
 		
+	static std::vector<FVector2D> OptimizePortals(std::vector<NavLine> const& Portals, TriPolygon const& NavPoly)
+	{
+		//P1 == right point of portal, P2 == left point of portal
+		std::vector<FVector2D> Path{};
+		const unsigned int amtPortals{ static_cast<unsigned int>(Portals.size()) };
+
+		if (amtPortals == 0)
+			return Path;
+
+		int apexIdx{ 0 }, leftLegIdx{ 1 }, rightLegIdx{ 1 };
+
+		FVector2D apexPos = Portals[apexIdx].P1;
+		Path.push_back(apexPos);
+
+		FVector2D rightLeg = Portals[rightLegIdx].P1 - apexPos;
+		FVector2D leftLeg = Portals[leftLegIdx].P2 - apexPos;
+
+		for (unsigned int portalIdx = 1; portalIdx < amtPortals; ++portalIdx)
+		{
+			const auto& portal = Portals[portalIdx];
+
 			//--- RIGHT CHECK ---
-			//1. See if moving funnel inwards - RIGHT
-			
-				//2. See if new line degenerates a line segment - RIGHT
-				
-					//Leftleg becomes new apex point
+			FVector2D newRightLeg = portal.P1 - apexPos;
 
-					//Calculate new legs (if not the end)
+			// Moving inwards on the right = CCW
+			if (Cross(rightLeg, newRightLeg) > 0)
+			{
+				// Crossed over the left leg
+				if (Cross(leftLeg, newRightLeg) > 0)
+				{
+					apexPos += leftLeg;
+					apexIdx = leftLegIdx;
 
+					portalIdx = leftLegIdx + 1;
+					leftLegIdx = portalIdx;
+					rightLegIdx = portalIdx;
+
+					Path.push_back(apexPos);
+
+					if (portalIdx < amtPortals)
+					{
+						rightLeg = Portals[rightLegIdx].P1 - apexPos;
+						leftLeg = Portals[leftLegIdx].P2 - apexPos;
+						continue;
+					}
+				}
+				else
+				{
+					rightLeg = newRightLeg;
+					rightLegIdx = portalIdx;
+				}
+			}
 
 			//--- LEFT CHECK ---
-			//1. See if moving funnel inwards - LEFT
+			FVector2D newLeftLeg = portal.P2 - apexPos;
 
-				//2. See if new line degenerates a line segment - LEFT
+			// Moving inwards on the left = CW
+			if (Cross(leftLeg, newLeftLeg) < 0)
+			{
+				// Crossed over the right leg
+				if (Cross(rightLeg, newLeftLeg) < 0)
+				{
+					apexPos += rightLeg;
+					apexIdx = rightLegIdx;
 
-					//Rightleg becomes new apex point
+					portalIdx = rightLegIdx + 1;
+					leftLegIdx = portalIdx;
+					rightLegIdx = portalIdx;
 
-					//Calculate new legs (if not the end)
+					Path.push_back(apexPos);
 
+					if (portalIdx < amtPortals)
+					{
+						rightLeg = Portals[rightLegIdx].P1 - apexPos;
+						leftLeg = Portals[leftLegIdx].P2 - apexPos;
+						continue;
+					}
+				}
+				else
+				{
+					leftLeg = newLeftLeg;
+					leftLegIdx = portalIdx;
+				}
+			}
+		}
 
 		// Add last path point
+		Path.push_back(Portals.back().P1);
 
 		return Path;
 	}
+		
+	// Wrote my own cross because v1.CrossProduct(v1, v2) just looks stupid.
+	static float Cross(const FVector2D& v1, const FVector2D& v2)
+	{
+		return v1.X * v2.Y - v1.Y * v2.X; 
+	};
 private:
 	SSFA() {};
 	~SSFA() {};
