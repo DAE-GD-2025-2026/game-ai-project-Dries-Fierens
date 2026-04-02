@@ -30,27 +30,26 @@ public:
 			auto pNode = static_cast<NavGraphNode*>(Path[i]);
 			auto pEdge = NavPoly.GetEdges()[pNode->GetEdgeIdx()];
 
-			const FVector EdgeP1 = pEdge.GetP1(NavPoly);
-			const FVector EdgeP2 = pEdge.GetP2(NavPoly);
+			const FVector edgeP1 = pEdge.GetP1(NavPoly);
+			const FVector edgeP2 = pEdge.GetP2(NavPoly);
 
-			const FVector2D PortalP1{EdgeP1.X, EdgeP1.Y};
-			const FVector2D PortalP2{EdgeP2.X, EdgeP2.Y};
+			const FVector2D portalP1{edgeP1.X, edgeP1.Y};
+			const FVector2D portalP2{edgeP2.X, edgeP2.Y};
 
 			//Redetermine it's "orientation" based on the required path (left-right vs right-left) - p1 should be right point
-			const FVector2D centerLine = (PortalP1 + PortalP2) / 2.0f;
-			//const FVector2D previousPosition = i == 0 ? Path[0]->GetPosition() : Path[i - 1]->GetPosition();
+			const FVector2D centerLine = (portalP1 + portalP2) / 2.0f;
 			const FVector2D previousPosition = Path[i - 1]->GetPosition();
 
-			const FVector2D ToCenter = centerLine - previousPosition;
-			const FVector2D ToP1 = PortalP1 - previousPosition;
+			const FVector2D toCenter = centerLine - previousPosition;
+			const FVector2D toP1 = portalP1 - previousPosition;
 			
-			const float cross = Cross(ToCenter, ToP1);
+			const float cross = Cross(toCenter, toP1);
 
 			NavLine portalLine{};
 			if (cross > 0.0f)
-				portalLine = NavLine(PortalP2, PortalP1);
+				portalLine = NavLine(portalP2, portalP1);
 			else
-				portalLine = NavLine(PortalP1, PortalP2);
+				portalLine = NavLine(portalP1, portalP2);
 
 			//Store portal
 			Portals.push_back(portalLine);
@@ -154,7 +153,6 @@ public:
 		return Path;
 	}
 		
-	// Wrote my own cross because v1.CrossProduct(v1, v2) just looks stupid.
 	static float Cross(const FVector2D& v1, const FVector2D& v2)
 	{
 		return v1.X * v2.Y - v1.Y * v2.X; 

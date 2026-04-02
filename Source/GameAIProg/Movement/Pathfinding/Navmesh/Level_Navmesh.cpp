@@ -7,6 +7,7 @@
 #include "AI/NavigationSystemBase.h"
 #include "GraphTheory/Algorithms/AStar.h"
 #include "GraphTheory/Algorithms/NavGraphPathfinding.h"
+#include "GraphTheory/Algorithms/PathSmoothing.h"
 #include "NavMesh/RecastNavMesh.h"
 #include "Runtime/Navmesh/Public/Detour/DetourNavMesh.h"
 #include "Shared/GameAISpectator.h"
@@ -98,10 +99,23 @@ void ALevel_Navmesh::Tick(float DeltaTime)
 	}
 	
 	// Todo: Draw the portals travelled through with SSFA
-	// if (bDrawPortals)
-	// {
-	// 	
-	// }
+	if (bDrawPortals)
+	{
+		constexpr float PortalDrawZ = 15.0f;
+
+		// Skip the first and last degenerate portals added by SSFA
+		for (size_t PortalIdx = 1; PortalIdx + 1 < DebugPortals.size(); ++PortalIdx)
+		{
+			const GameAI::NavLine& Portal = DebugPortals[PortalIdx];
+
+			const FVector RightPoint{ Portal.P1, PortalDrawZ };
+			const FVector LeftPoint{ Portal.P2, PortalDrawZ };
+
+			DrawDebugLine(GetWorld(), RightPoint, LeftPoint, FColor::Orange, false, -1.0f, 0, 6.0f);
+			DrawDebugPoint(GetWorld(), RightPoint, 12.0f, FColor::Red, false, -1.0f, 0);
+			DrawDebugPoint(GetWorld(), LeftPoint, 12.0f, FColor::Green, false, -1.0f, 0);
+		}
+	}
 	
 	UpdateImGui();
 }
@@ -214,15 +228,21 @@ TArray<TArray<FVector>> ALevel_Navmesh::ExtractNavMeshTris() const
 
 void ALevel_Navmesh::SetTarget()
 {
-	GameAI::NavMeshPathfinding Pathfinder{};
-	std::vector<FVector2D> Path =  Pathfinder.FindPath(Agent->GetPosition(), 
-	FVector2D{LatestMouseWorldPos}, NavigationGraph.get());
-
-	DebugDrawPath = Path;
+	DebugDrawPath.clear();
+	DebugNodePositions.clear();
+	DebugPortals.clear();
 	
-	PathFollow.SetPath(Path);
-	if (Path.size() > 0)
+	GameAI::NavMeshPathfinding Pathfinder{};
+	DebugDrawPath = Pathfinder.FindPath(
+		Agent->GetPosition(),
+		FVector2D{LatestMouseWorldPos},
+		NavigationGraph.get(),
+		DebugNodePositions,
+		DebugPortals);
+	
+	PathFollow.SetPath(DebugDrawPath);
+	if (!DebugDrawPath.empty())
 	{
-		Agent->SetPosition(Path[0]);
+		Agent->SetPosition(DebugDrawPath[0]);
 	}
 }
