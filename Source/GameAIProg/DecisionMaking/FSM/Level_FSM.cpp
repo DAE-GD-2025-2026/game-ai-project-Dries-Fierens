@@ -214,10 +214,14 @@ ALevel_FSM::ALevel_FSM()
 	PrimaryActorTick.bCanEverTick = true;
 
 	PatrolRoute = {
-		FVector{300.f, 300.f, 90.f},
-		FVector{300.f, -300.f, 90.f},
-		FVector{-300.f, -300.f, 90.f},
-		FVector{-300.f, 300.f, 90.f}
+		FVector{-650.f, 450.f, 90.f},
+		FVector{-650.f, -250.f, 90.f},
+		FVector{-350.f, -250.f, 90.f},
+		FVector{250.f, 150.f, 90.f},
+		FVector{250.f, 650.f, 90.f},
+		FVector{750.f, 650.f, 90.f},
+		FVector{750.f, -650.f, 90.f},
+		FVector{-750.f, -650.f, 90.f},
 	};
 }
 
@@ -231,8 +235,8 @@ void ALevel_FSM::BeginPlay()
 		return;
 	}
 
-	const FVector GuardSpawnLocation = PatrolRoute.IsEmpty() ? FVector{300.f, 300.f, 90.f} : PatrolRoute[0];
-	const FVector ThiefSpawnLocation = FVector{0.f, 0.f, 90.f};
+	const FVector GuardSpawnLocation = PatrolRoute.IsEmpty() ? FVector{ -650.f, 450.f, 90.f } : PatrolRoute[0];
+	const FVector ThiefSpawnLocation = FVector{ 900.f, 700.f, 90.f };
 
 	Thief = GetWorld()->SpawnActor<ASteeringAgent>(SteeringAgentClass, ThiefSpawnLocation, FRotator::ZeroRotator);
 	Guard = GetWorld()->SpawnActor<ASteeringAgent>(SteeringAgentClass, GuardSpawnLocation, FRotator::ZeroRotator);
@@ -247,7 +251,7 @@ void ALevel_FSM::BeginPlay()
 
 	ThiefMoveBehavior.SetTargetRadius(10.f);
 	ThiefMoveBehavior.SetSlowRadius(150.f);
-	ThiefMoveBehavior.SetTarget(FTargetData{Thief->GetPosition()});
+	ThiefMoveBehavior.SetTarget(FTargetData{ Thief->GetPosition() });
 	Thief->SetSteeringBehavior(&ThiefMoveBehavior);
 
 	if (Guard->GetController() == nullptr)
@@ -281,41 +285,41 @@ void ALevel_FSM::BeginPlay()
 	FSM->SetInitialState(PatrolStatePtr);
 
 	FSM->AddTransition(PatrolStatePtr, ChaseStatePtr, [this, GuardController]()
-	{
-		const bool bVisible = IsTargetVisible(GuardController, Guard, Thief, DetectionRadius);
-		if (bVisible)
 		{
-			UpdateTargetBlackboard(GuardController->GetBlackboardComponent(), Thief);
-		}
-		return bVisible;
-	});
+			const bool bVisible = IsTargetVisible(GuardController, Guard, Thief, DetectionRadius);
+			if (bVisible)
+			{
+				UpdateTargetBlackboard(GuardController->GetBlackboardComponent(), Thief);
+			}
+			return bVisible;
+		});
 
 	FSM->AddTransition(ChaseStatePtr, SearchStatePtr, [this, GuardController]()
-	{
-		return !IsTargetVisible(GuardController, Guard, Thief, DetectionRadius);
-	});
+		{
+			return !IsTargetVisible(GuardController, Guard, Thief, DetectionRadius);
+		});
 
 	FSM->AddTransition(SearchStatePtr, ChaseStatePtr, [this, GuardController]()
-	{
-		const bool bVisible = IsTargetVisible(GuardController, Guard, Thief, DetectionRadius);
-		if (bVisible)
 		{
-			UpdateTargetBlackboard(GuardController->GetBlackboardComponent(), Thief);
-		}
-		return bVisible;
-	});
+			const bool bVisible = IsTargetVisible(GuardController, Guard, Thief, DetectionRadius);
+			if (bVisible)
+			{
+				UpdateTargetBlackboard(GuardController->GetBlackboardComponent(), Thief);
+			}
+			return bVisible;
+		});
 
 	FSM->AddTransition(SearchStatePtr, PatrolStatePtr, [this, GuardController]()
-	{
-		UBlackboardComponent* BlackboardComp = GuardController->GetBlackboardComponent();
-		if (BlackboardComp == nullptr || Guard == nullptr)
 		{
-			return false;
-		}
+			UBlackboardComponent* BlackboardComp = GuardController->GetBlackboardComponent();
+			if (BlackboardComp == nullptr || Guard == nullptr)
+			{
+				return false;
+			}
 
-		const float SearchStartTime = BlackboardComp->GetValueAsFloat(SearchStartTimeKey);
-		return Guard->GetWorld()->GetTimeSeconds() - SearchStartTime >= SearchDuration;
-	});
+			const float SearchStartTime = BlackboardComp->GetValueAsFloat(SearchStartTimeKey);
+			return Guard->GetWorld()->GetTimeSeconds() - SearchStartTime >= SearchDuration;
+		});
 
 	GuardController->RunFiniteStateMachine();
 }
