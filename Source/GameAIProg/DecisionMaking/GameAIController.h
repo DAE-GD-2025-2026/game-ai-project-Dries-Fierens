@@ -4,7 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "AIController.h"
+#include "Perception/AIPerceptionTypes.h"
 #include "GameAIController.generated.h"
+
+class UAIPerceptionComponent;
+class UAISenseConfig_Sight;
+class UBlackboardData;
 
 UCLASS()
 class GAMEAIPROG_API AGameAIController : public AAIController
@@ -13,17 +18,29 @@ class GAMEAIPROG_API AGameAIController : public AAIController
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|FSM")
-	TObjectPtr<UBlackboardData> FSMBlackboardAsset; 
-	
-	// Sets default values for this actor's properties
+	TObjectPtr<UBlackboardData> FSMBlackboardAsset{nullptr};
+
 	AGameAIController();
-	// Called every frame
+
 	virtual void Tick(float DeltaTime) override;
-	
+
 	void RunFiniteStateMachine();
-	
+	void ConfigureSight(float SightRadius, float LoseSightRadius, float PeripheralVisionAngleDegrees);
+
+	AActor* GetTargetActor() const;
+	FVector GetLastKnownTargetLocation() const;
+
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	void InitFiniteStateMachine();
+
+	UFUNCTION()
+	void HandleTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);
+
+private:
+	UPROPERTY(VisibleAnywhere, Category="AI|Perception")
+	TObjectPtr<UAIPerceptionComponent> AIPerceptionComponent{nullptr};
+
+	UPROPERTY(VisibleAnywhere, Category="AI|Perception")
+	TObjectPtr<UAISenseConfig_Sight> SightConfig{nullptr};
 };

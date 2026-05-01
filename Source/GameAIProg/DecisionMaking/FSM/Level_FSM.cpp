@@ -5,7 +5,6 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "DrawDebugHelpers.h"
 #include "FSMComponent.h"
-#include "InputAction.h"
 #include "DecisionMaking/GameAIController.h"
 
 namespace
@@ -19,23 +18,11 @@ namespace
 		return FVector2D{Value.X, Value.Y};
 	}
 
-	bool IsTargetVisible(AGameAIController* GuardController, ASteeringAgent* Guard, ASteeringAgent* Thief, float DetectionRadius)
+	bool IsTargetVisible(AGameAIController* GuardController, ASteeringAgent* Thief)
 	{
-		if (GuardController == nullptr || Guard == nullptr || Thief == nullptr)
-		{
-			return false;
-		}
-
-		const bool bInRange =
-			FVector::DistSquared2D(Guard->GetActorLocation(), Thief->GetActorLocation()) <=
-			FMath::Square(DetectionRadius);
-
-		if (!bInRange)
-		{
-			return false;
-		}
-
-		return GuardController->LineOfSightTo(Thief);
+		return GuardController != nullptr &&
+			Thief != nullptr &&
+			GuardController->GetTargetActor() == Thief;
 	}
 
 	void UpdateTargetBlackboard(UBlackboardComponent* Blackboard, ASteeringAgent* Thief)
@@ -235,8 +222,8 @@ void ALevel_FSM::BeginPlay()
 		return;
 	}
 
-	const FVector GuardSpawnLocation = PatrolRoute.IsEmpty() ? FVector{ -650.f, 450.f, 90.f } : PatrolRoute[0];
-	const FVector ThiefSpawnLocation = FVector{ 900.f, 700.f, 90.f };
+	const FVector GuardSpawnLocation = PatrolRoute.IsEmpty() ? FVector{-650.f, 450.f, 90.f} : PatrolRoute[0];
+	const FVector ThiefSpawnLocation = FVector{900.f, 700.f, 90.f};
 
 	Thief = GetWorld()->SpawnActor<ASteeringAgent>(SteeringAgentClass, ThiefSpawnLocation, FRotator::ZeroRotator);
 	Guard = GetWorld()->SpawnActor<ASteeringAgent>(SteeringAgentClass, GuardSpawnLocation, FRotator::ZeroRotator);
@@ -251,8 +238,9 @@ void ALevel_FSM::BeginPlay()
 
 	ThiefMoveBehavior.SetTargetRadius(10.f);
 	ThiefMoveBehavior.SetSlowRadius(150.f);
-	ThiefMoveBehavior.SetTarget(FTargetData{ Thief->GetPosition() });
+	ThiefMoveBehavior.SetTarget(FTargetData{Thief->GetPosition()});
 	Thief->SetSteeringBehavior(&ThiefMoveBehavior);
+	NextThiefRetargetTime = 0.f;
 
 	if (Guard->GetController() == nullptr)
 	{
@@ -264,6 +252,11 @@ void ALevel_FSM::BeginPlay()
 	{
 		return;
 	}
+
+	GuardController->ConfigureSight(
+		DetectionRadius,
+		DetectionRadius * LoseSightRadiusMultiplier,
+		PeripheralVisionAngleDegrees);
 
 	UFSMComponent* FSM = Cast<UFSMComponent>(GuardController->GetBrainComponent());
 	if (!ensure(FSM != nullptr))
@@ -286,27 +279,17 @@ void ALevel_FSM::BeginPlay()
 
 	FSM->AddTransition(PatrolStatePtr, ChaseStatePtr, [this, GuardController]()
 		{
-			const bool bVisible = IsTargetVisible(GuardController, Guard, Thief, DetectionRadius);
-			if (bVisible)
-			{
-				UpdateTargetBlackboard(GuardController->GetBlackboardComponent(), Thief);
-			}
-			return bVisible;
+			return IsTargetVisible(GuardController, Thief);
 		});
 
 	FSM->AddTransition(ChaseStatePtr, SearchStatePtr, [this, GuardController]()
 		{
-			return !IsTargetVisible(GuardController, Guard, Thief, DetectionRadius);
+			return !IsTargetVisible(GuardController, Thief);
 		});
 
 	FSM->AddTransition(SearchStatePtr, ChaseStatePtr, [this, GuardController]()
 		{
-			const bool bVisible = IsTargetVisible(GuardController, Guard, Thief, DetectionRadius);
-			if (bVisible)
-			{
-				UpdateTargetBlackboard(GuardController->GetBlackboardComponent(), Thief);
-			}
-			return bVisible;
+			return IsTargetVisible(GuardController, Thief);
 		});
 
 	FSM->AddTransition(SearchStatePtr, PatrolStatePtr, [this, GuardController]()
@@ -322,20 +305,7 @@ void ALevel_FSM::BeginPlay()
 		});
 
 	GuardController->RunFiniteStateMachine();
-}
-
-void ALevel_FSM::BindLevelInputActions()
-{
-	Super::BindLevelInputActions();
-
-	if (PlayerEnhancedInputComponent != nullptr && SetThiefTargetAction != nullptr)
-	{
-		PlayerEnhancedInputComponent->BindAction(
-			SetThiefTargetAction,
-			ETriggerEvent::Started,
-			this,
-			&ALevel_FSM::SetThiefTarget);
-	}
+	UpdateThiefAI();
 }
 
 // Called every frame
@@ -343,23 +313,76 @@ void ALevel_FSM::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (PlayerController != nullptr && PlayerController->WasInputKeyJustPressed(EKeys::LeftMouseButton))
-	{
-		SetThiefTarget();
-	}
-
+	UpdateThiefAI();
 	DrawPatrolRoute();
 }
 
-void ALevel_FSM::SetThiefTarget()
+void ALevel_FSM::UpdateThiefAI()
 {
-	if (Thief == nullptr)
+	if (Thief == nullptr || GetWorld() == nullptr)
 	{
 		return;
 	}
 
-	ThiefMoveBehavior.SetTarget(FTargetData{FVector2D{LatestMouseWorldPos.X, LatestMouseWorldPos.Y}});
+	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	if (CurrentTime < NextThiefRetargetTime)
+	{
+		return;
+	}
+
+	const FVector NextTargetLocation = GetNextThiefTargetLocation();
+
+	ThiefMoveBehavior.SetTarget(FTargetData{FVector2D{NextTargetLocation.X, NextTargetLocation.Y}});
 	Thief->SetSteeringBehavior(&ThiefMoveBehavior);
+
+	NextThiefRetargetTime = CurrentTime + ThiefRetargetInterval;
+}
+
+FVector ALevel_FSM::GetNextThiefTargetLocation() const
+{
+	if (Thief == nullptr)
+	{
+		return FVector::ZeroVector;
+	}
+
+	const FVector CurrentLocation = Thief->GetActorLocation();
+
+	FVector Direction{ForceInitToZero};
+
+	if (Guard != nullptr)
+	{
+		const float DistanceToGuardSq = FVector::DistSquared2D(CurrentLocation, Guard->GetActorLocation());
+		if (DistanceToGuardSq <= FMath::Square(ThiefKeepAwayDistance))
+		{
+			Direction = (CurrentLocation - Guard->GetActorLocation()).GetSafeNormal2D();
+		}
+	}
+
+	if (Direction.IsNearlyZero())
+	{
+		const float RandomAngle = FMath::FRandRange(0.f, 2.f * PI);
+		Direction = FVector{FMath::Cos(RandomAngle), FMath::Sin(RandomAngle), 0.f};
+	}
+
+	const float TravelDistance = FMath::FRandRange(ThiefWanderRadius * 0.5f, ThiefWanderRadius);
+
+	FVector CandidateLocation = CurrentLocation + Direction * TravelDistance;
+	CandidateLocation.Z = CurrentLocation.Z;
+
+	if (!PatrolRoute.IsEmpty())
+	{
+		FBox PatrolBounds{ForceInit};
+		for (const FVector& PatrolPoint : PatrolRoute)
+		{
+			PatrolBounds += PatrolPoint;
+		}
+
+		constexpr float BoundsPadding = 250.f;
+		CandidateLocation.X = FMath::Clamp(CandidateLocation.X, PatrolBounds.Min.X - BoundsPadding, PatrolBounds.Max.X + BoundsPadding);
+		CandidateLocation.Y = FMath::Clamp(CandidateLocation.Y, PatrolBounds.Min.Y - BoundsPadding, PatrolBounds.Max.Y + BoundsPadding);
+	}
+
+	return CandidateLocation;
 }
 
 void ALevel_FSM::DrawPatrolRoute() const
