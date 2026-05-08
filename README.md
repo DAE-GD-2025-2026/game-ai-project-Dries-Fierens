@@ -7,4 +7,5 @@ like Steering behaviors, Flocking with space partitioning, Graphs, Astar, BFS, N
 
 ### WEEK 5 Pathfinding Algorithms - Fallback Path
 When no path can be found (if the goal is unreachable) find a path to the node closest to the original goal instead
+
 Source file: Astar.cpp
